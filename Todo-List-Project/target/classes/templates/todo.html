@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <link rel="stylesheet" type="text/css" href="css/index.css"></link>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body>
+<section class="todoapp">
+    <header class="header">
+        <h1>todos</h1>
+        <input class="new-todo"
+               autofocus
+               placeholder="What needs to be done?"
+               @keyup.enter="addTodo">
+    </header>
+    <section class="main">
+        <input id="toggle-all" class="toggle-all" type="checkbox">
+        <label for="toggle-all"></label>
+        <ul class="todo-list">
+            <li v-for="todo in filteredTodo"
+                :key="todo.id"
+                class="todo"
+                >
+                <div class="view">
+                    <input class="toggle" type="checkbox" v-model="todo.completed">
+                    <label>{{ todo.title }}</label>
+                    <button class="destroy" @click.prevent="removeTodo(todo)"></button>
+                </div>
+                <input class="edit"
+                       type="text"
+                >
+            </li>
+        </ul>
+    </section>
+</section>
+<script>
+
+    var instance = axios.create({
+        baseURL: 'http://localhost:8080'
+    });
+
+    var Todo = function(title, id) {
+        var index = -1;
+        return function (title, id){
+
+            this.title = title;
+            this.id = id;
+
+            this.completed = false;
+            return this;
+        }
+    }();
+
+    var vm = new Vue({
+        el: '.todoapp',
+        data: {
+            todos: [],
+            visibility: 'all'
+        },
+        mounted(){
+            this.getTodoList();
+        },
+        computed: {
+            filteredTodo: function () {
+                var type = this.visibility;
+                if(type === 'all') {
+                    return this.todos;
+                } else if(type === 'active') {
+                    return this.todos.filter(function (todo) {
+                        return todo.completed === false;
+                    });
+                } else if (type === 'completed'){
+                    return this.todos.filter(function (todo) {
+                        return todo.completed === true;
+                    });
+                }
+            }
+        },
+        methods : {
+            getTodoList(){
+                instance.get('/todo')
+                    .then((response) => {
+                        var todoList = response.data.slice(0, 10);
+                        console.log(todoList);
+                        var newEms = todoList.map(function(todo){
+                            return new Todo(todo.content, todo.id);
+                        });
+                        vm.todos = newEms;
+                    });
+            },
+            addTodo(e) {
+                instance.post("/todo",{ content:e.target.value })
+                    .then(res => {
+                        if(res.data.result===200){
+                            this.getTodoList()
+                            console.log("INSERT DATA SUCCESS");
+                        }
+                        else{
+                            console.log("INSERT DATA FAIL");
+                        }
+                    }).catch(err => {
+                        console.log(err);
+                    })
+                e.target.value = '';
+            },
+            removeTodo(todo) {
+                instance.delete('/todo/' + todo.id)
+                    .then(response => {
+                        if (response.status === 200) {
+                            this.getTodoList()
+                            console.log("DELETE DATA SUCCESS");
+                        }
+                    })
+                    .catch(err => {
+                        console.log(err)
+                    });
+
+            },
+            changeVisibility: function (type) {
+                this.visibility = type;
+            },
+        }
+    });
+</script>
+</body>
+</html>
